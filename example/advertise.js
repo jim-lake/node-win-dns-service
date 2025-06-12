@@ -10,7 +10,7 @@ if (!service || !port || isNaN(port)) {
 console.log('advertise:', service, port);
 
 try {
-  DnsService.advertise({ service, port }, (err, result) => {
+  DnsService.advertise({ service, port }, (err) => {
     if (err) {
       console.error('failed:', err);
       process.exit(-1);
@@ -23,8 +23,10 @@ try {
   process.exit(-2);
 }
 
-console.log('Waiting 30 seconds...');
-setTimeout(() => {
+console.log('Any key to stop...');
+process.stdin.setRawMode(true);
+process.stdin.once('data', () => {
+  process.stdin.setRawMode(false);
   try {
     console.log('stopAdvertise:', service);
     DnsService.stopAdvertise(service, (err) => {
@@ -34,15 +36,11 @@ setTimeout(() => {
       } else {
         console.log('stop success');
       }
-      setTimeout(
-        () => {
-          console.log('waiting forever...');
-        },
-        60 * 60 * 1000
-      );
+      setTimeout(() => {}, 60 * 60 * 1000);
+      console.log('waiting forever...');
     });
   } catch (e) {
     console.error('threw:', e);
     process.exit(-3);
   }
-}, 30 * 1000);
+});

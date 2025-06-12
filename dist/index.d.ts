@@ -17,9 +17,14 @@ type AdvertiseParams = {
   service: string;
   port: number;
 };
+type LastEmit = {
+  reason: string;
+  time: number;
+  service: Service;
+};
 declare class Browser extends EventEmitter {
   _service: string;
-  _lastEmit: Map<string, [reason: string, service: Service]>;
+  _lastEmit: Map<string, LastEmit>;
   constructor(service: string);
   start(): any;
   stop(): any;

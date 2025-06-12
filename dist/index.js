@@ -11,6 +11,7 @@ exports.browse = browse;
 const node_events_1 = __importDefault(require('node:events'));
 const addon = require('../build/Release/node_win_dns_service.node');
 exports.default = { advertise, stopAdvertise, browse };
+const SKIP_TIME = 60 * 1000;
 const g_emitter = new node_events_1.default();
 function _callback(reason, status, service, records) {
   g_emitter.emit(reason, status, service, records);
@@ -90,12 +91,19 @@ class Browser extends node_events_1.default {
   }
   _maybeEmit(reason, service) {
     const last = this._lastEmit.get(service.fullname);
+    const delta = Date.now() - (last?.time ?? 0);
     let should_emit = true;
-    if (last && last[0] === reason && _isServiceEqual(service, last[1])) {
+    if (
+      last &&
+      delta < SKIP_TIME &&
+      last.reason === reason &&
+      _isServiceEqual(service, last.service)
+    ) {
       should_emit = false;
     }
     if (should_emit) {
-      this._lastEmit.set(service.fullname, [reason, service]);
+      const time = Date.now();
+      this._lastEmit.set(service.fullname, { reason, time, service });
       this.emit(reason, service);
     }
   }

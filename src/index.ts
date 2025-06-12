@@ -3,6 +3,7 @@ const addon = require('../build/Release/node_win_dns_service.node');
 
 export default { advertise, stopAdvertise, browse };
 
+const SKIP_TIME = 60 * 1000;
 const g_emitter = new EventEmitter();
 
 interface Service {
@@ -36,9 +37,14 @@ type AdvertiseParams = {
   port: number;
 };
 
+type LastEmit = {
+  reason: string;
+  time: number;
+  service: Service;
+};
 class Browser extends EventEmitter {
   _service: string;
-  _lastEmit = new Map<string, [reason: string, service: Service]>();
+  _lastEmit = new Map<string, LastEmit>();
   constructor(service: string) {
     super();
     this._service = service;
@@ -114,12 +120,19 @@ class Browser extends EventEmitter {
   };
   _maybeEmit(reason: string, service: Service) {
     const last = this._lastEmit.get(service.fullname);
+    const delta = Date.now() - (last?.time ?? 0);
     let should_emit = true;
-    if (last && last[0] === reason && _isServiceEqual(service, last[1])) {
+    if (
+      last &&
+      delta < SKIP_TIME &&
+      last.reason === reason &&
+      _isServiceEqual(service, last.service)
+    ) {
       should_emit = false;
     }
     if (should_emit) {
-      this._lastEmit.set(service.fullname, [reason, service]);
+      const time = Date.now();
+      this._lastEmit.set(service.fullname, { reason, time, service });
       this.emit(reason, service);
     }
   }

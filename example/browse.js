@@ -9,8 +9,9 @@ if (!service) {
 }
 console.log('browse:', service);
 
+let browser;
 try {
-  const browser = DnsService.browse(service);
+  browser = DnsService.browse(service);
 
   browser.on('error', (err) => {
     console.error('error:', util.inspect(err, { depth: 99 }));
@@ -23,15 +24,24 @@ try {
   });
   const ret = browser.start();
   console.log('start: ret:', ret);
-  if (!ret) {
-    setTimeout(() => {
-      const ret = browser.stop();
-      console.log('stop: ret:', ret);
-      setTimeout(() => {}, 60 * 60 * 1000);
-      console.log('waiting forever...');
-    }, 60 * 1000);
-    console.log('waiting 60 seconds...');
+  if (ret) {
+    process.exit(-2);
   }
 } catch (e) {
   console.error('threw:', e);
 }
+
+console.log('Any key to stop...');
+process.stdin.setRawMode(true);
+process.stdin.once('data', () => {
+  process.stdin.setRawMode(false);
+  try {
+    const ret = browser.stop();
+    console.log('stop: ret:', ret);
+    setTimeout(() => {}, 60 * 60 * 1000);
+    console.log('waiting forever...');
+  } catch (e) {
+    console.error('threw:', e);
+    process.exit(-3);
+  }
+});
