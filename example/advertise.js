@@ -1,21 +1,22 @@
-const FileAttrib = require('../dist/index.js');
+const DnsService = require('../dist/index.js');
 
-const path = process.argv[2];
+const service = process.argv[2];
+const port = parseInt(process.argv[3]);
 
-if (!path) {
-  console.log('Usage: get <path>');
+if (!service || !port || isNaN(port) ) {
+  console.log('Usage: advertise <service> <port>');
   process.exit(-1);
 }
-console.log('get:', path);
+console.log('advertise:', service, port);
 
 try {
-  FileAttrib.getAttributes(path, (err, result) => {
+  DnsService.advertise({ service, port }, (err, result) => {
     if (err) {
-      console.error('failed:', err, err?.errno?.toString?.(16));
+      console.error('failed:', err);
     } else {
       console.log('success:', result);
     }
   });
 } catch (e) {
-  console.error('threw:', e?.errno?.toString?.(16), e);
+  console.error('threw:', e);
 }
