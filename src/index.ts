@@ -42,24 +42,20 @@ export class Browser extends EventEmitter {
     this._service = service;
   }
   start() {
-    const err = addon.browse(this._service);
-    if (err && typeof err === 'string') {
-      throw new Error(err);
+    g_emitter.on('browse', this._onBrowse);
+    try {
+      addon.browse(this._service);
+    } catch (e) {
+      this.emit('error', e);
     }
-    if (err) {
-      this.emit('error', err);
-    } else {
-      g_emitter.on('browse', this._onBrowse);
-    }
-    return err;
   }
   stop() {
     g_emitter.off('browse', this._onBrowse);
-    const err = addon.stopBrowse(this._service);
-    if (err && typeof err === 'string') {
-      throw new Error(err);
+    try {
+      addon.stopBrowse(this._service);
+    } catch (e) {
+      this.emit('error', e);
     }
-    return err;
   }
   private _onBrowse = (status, service, records) => {
     const addresses: string[] = [];
@@ -143,20 +139,20 @@ export class Advertiser extends EventEmitter {
   start() {
     g_emitter.off('deregister', this._onDeregister);
     g_emitter.on('register', this._onRegister);
-    const err = addon.register(this._service, this._port);
-    if (err && typeof err === 'string') {
-      throw new Error(err);
+    try {
+      addon.register(this._service, this._port);
+    } catch (e) {
+      this.emit('error', e);
     }
-    return err;
   }
   stop() {
     g_emitter.off('register', this._onRegister);
     g_emitter.on('deregister', this._onDeregister);
-    const err = addon.deregister(this._service);
-    if (err && typeof err === 'string') {
-      throw new Error(err);
+    try {
+      addon.deregister(this._service);
+    } catch (e) {
+      this.emit('error', e);
     }
-    return err;
   }
   private _onRegister = (status: number, service: string) => {
     if (service === this._service && status !== 0) {

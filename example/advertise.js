@@ -15,13 +15,9 @@ try {
   advertiser.on('error', (error) => {
     console.error('error:', error);
   });
-  const err = advertiser.start();
-  if (err) {
-    console.log('start err:', err);
-    process.exit(-2);
-  }
+  advertiser.start();
 } catch (e) {
-  console.error('threw:', e);
+  console.error('start threw:', e);
   process.exit(-3);
 }
 
@@ -31,17 +27,12 @@ process.stdin.once('data', () => {
   process.stdin.setRawMode(false);
   try {
     console.log('stop:', service);
-    const err = advertiser.stop();
-    if (err) {
-      console.error('stop failed:', err);
-      process.exit(-4);
-    } else {
-      console.log('stop success');
-    }
+    advertiser.stop();
+    console.log('stop success');
     setTimeout(() => {}, 60 * 60 * 1000);
     console.log('waiting forever...');
   } catch (e) {
-    console.error('threw:', e);
+    console.error('stop threw:', e);
     process.exit(-3);
   }
 });

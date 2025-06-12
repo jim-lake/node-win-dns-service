@@ -48,92 +48,94 @@ void _browseCallback(const std::string reason,
 }
 Value Setup(const Napi::CallbackInfo &info) {
   const Napi::Env env = info.Env();
-  Value ret = env.Null();
-
   if (info.Length() != 1) {
-    ret = String::New(env, "Expected 1 arguments");
+    Error::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
   } else if (!info[0].IsFunction()) {
-    ret = String::New(env, "Expected function arg 1");
+    Error::New(env, "Expected function arg 1").ThrowAsJavaScriptException();
   } else {
     Function cb = info[0].As<Function>();
     g_tsfn = ThreadSafeFunction::New(env, cb, "DNS Service Callback", 0, 1);
     SetAdvertiseCallback(_advertiseCallback);
     SetBrowserCallback(_browseCallback);
   }
-  return ret;
+  return env.Null();
 }
 Value Register(const CallbackInfo &info) {
   const Env env = info.Env();
-  Value ret = env.Null();
-
   if (info.Length() != 2) {
-    ret = String::New(env, "Expected 2 arguments");
+    Error::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
   } else if (!info[0].IsString()) {
-    ret = String::New(env, "Expected string arg 0");
+    Error::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
   } else if (!info[1].IsNumber()) {
-    ret = String::New(env, "Expected number arg 1");
+    Error::New(env, "Expected number arg 1").ThrowAsJavaScriptException();
   } else {
     const auto service_name = info[0].As<String>();
     const auto port = info[1].As<Number>();
     const auto result = RegisterService(service_name, port.Int32Value());
-    if (result != 0) {
-      ret = Number::New(env, result);
+    if (result.error.length() > 0) {
+      auto err = Napi::Error::New(env, result.error);
+      err.Set("errno", Number::New(env, result.win_error));
+      err.Set("last_error", Number::New(env, result.last_error));
+      err.ThrowAsJavaScriptException();
     }
   }
-  return ret;
+  return env.Null();
 }
 Value DeRegister(const CallbackInfo &info) {
   const Env env = info.Env();
-  Value ret = env.Null();
-
   if (info.Length() != 1) {
-    ret = String::New(env, "Expected 1 arguments");
+    Error::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
   } else if (!info[0].IsString()) {
-    ret = String::New(env, "Expected string arg 0");
+    Error::New(env, "Expected string arg 0").ThrowAsJavaScriptException();
   } else {
     const auto service_name = info[0].As<String>();
     const auto result = DeRegisterService(service_name);
-    if (result != 0) {
-      ret = Number::New(env, result);
+    if (result.error.length() > 0) {
+      auto err = Napi::Error::New(env, result.error);
+      err.Set("errno", Number::New(env, result.win_error));
+      err.Set("last_error", Number::New(env, result.last_error));
+      err.ThrowAsJavaScriptException();
     }
   }
-  return ret;
+  return env.Null();
 }
 Value Browse(const CallbackInfo &info) {
   const Env env = info.Env();
-  Value ret = env.Null();
-
   if (info.Length() != 1) {
-    ret = String::New(env, "Expected 1 arguments");
+    Error::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
   } else if (!info[0].IsString()) {
-    ret = String::New(env, "Expected string arg 0");
+    Error::New(env, "Expected string arg 0").ThrowAsJavaScriptException();
   } else {
     const auto service_name = info[0].As<String>();
     const std::wstring name((wchar_t *)std::u16string(service_name).c_str());
     const auto result = StartBrowser(service_name);
-    if (result != 0) {
-      ret = Number::New(env, result);
+    if (result.error.length() > 0) {
+      auto err = Napi::Error::New(env, result.error);
+      err.Set("errno", Number::New(env, result.win_error));
+      err.Set("last_error", Number::New(env, result.last_error));
+      err.ThrowAsJavaScriptException();
     }
   }
-  return ret;
+  return env.Null();
 }
 Value StopBrowse(const CallbackInfo &info) {
   const Env env = info.Env();
-  Value ret = env.Null();
-
   if (info.Length() != 1) {
-    ret = String::New(env, "Expected 1 arguments");
+    Error::New(env, "Expected 1 arguments").ThrowAsJavaScriptException();
   } else if (!info[0].IsString()) {
-    ret = String::New(env, "Expected string arg 0");
+    Error::New(env, "Expected string arg 0").ThrowAsJavaScriptException();
   } else {
     const auto service_name = info[0].As<String>();
     const std::wstring name((wchar_t *)std::u16string(service_name).c_str());
     const auto result = StopBrowser(service_name);
-    if (result != 0) {
-      ret = Number::New(env, result);
+    if (result.error.length() > 0) {
+      auto err = Napi::Error::New(env, result.error);
+      err.Set("errno", Number::New(env, result.win_error));
+      err.Set("last_error", Number::New(env, result.last_error));
+      err.ThrowAsJavaScriptException();
     }
   }
-  return ret;
+  return env.Null();
 }
 Object Init(Env env, Object exports) {
   exports.Set("setup", Function::New(env, Setup));

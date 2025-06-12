@@ -11,8 +11,8 @@ export declare class Browser extends EventEmitter {
   private _service;
   private _lastEmit;
   constructor(service: string);
-  start(): any;
-  stop(): any;
+  start(): void;
+  stop(): void;
   private _onBrowse;
   private _maybeEmit;
 }
@@ -20,8 +20,8 @@ export declare class Advertiser extends EventEmitter {
   private _service;
   private _port;
   constructor(service: string, port: number);
-  start(): any;
-  stop(): any;
+  start(): void;
+  stop(): void;
   private _onRegister;
   private _onDeregister;
 }

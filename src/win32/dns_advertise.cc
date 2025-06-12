@@ -45,15 +45,16 @@ static void _DnsServiceDeRegisterComplete(DWORD Status, PVOID pQueryContext,
   }
 }
 void SetAdvertiseCallback(AdvertiseCallback func) { _callback = func; }
-int RegisterService(const std::u16string &service_name, const uint16_t port) {
+Result RegisterService(const std::u16string &service_name,
+                       const uint16_t port) {
   if (g_serviceRequestMap.find(service_name) != g_serviceRequestMap.end()) {
-    return -1;
+    return {"already_registered"};
   }
 
   wchar_t hostname[256];
   DWORD size = _countof(hostname);
   if (!GetComputerNameExW(ComputerNameDnsHostname, hostname, &size)) {
-    return -2;
+    return {"no_computer_name"};
   }
 
   std::wstring fqdn = hostname;
@@ -81,8 +82,8 @@ int RegisterService(const std::u16string &service_name, const uint16_t port) {
   request->hCredentials = nullptr;
   request->unicastEnabled = FALSE;
 
-  DWORD result = DnsServiceRegister(request, nullptr);
-  if (result == DNS_REQUEST_PENDING) {
+  DWORD win_result = DnsServiceRegister(request, nullptr);
+  if (win_result == DNS_REQUEST_PENDING) {
     g_serviceRequestMap.insert({service_name, request});
   } else {
     const auto last_error = GetLastError();
@@ -90,29 +91,27 @@ int RegisterService(const std::u16string &service_name, const uint16_t port) {
     free(request->pServiceInstance->pszHostName);
     delete request->pServiceInstance;
     delete request;
-    printf("register: result: %d, last error: %d\n", result, last_error);
-    return result || last_error || -99;
+    return {"register_failed", win_result, last_error};
   }
-  return 0;
+  return {};
 }
-int DeRegisterService(const std::u16string &service_name) {
+Result DeRegisterService(const std::u16string &service_name) {
   const auto iter = g_serviceRequestMap.find(service_name);
   if (iter == g_serviceRequestMap.end()) {
-    return -1;
+    return {"not_found"};
   }
   DNS_SERVICE_REGISTER_REQUEST *request = iter->second;
   g_serviceRequestMap.erase(service_name);
   request->pRegisterCompletionCallback = &_DnsServiceDeRegisterComplete;
 
-  DWORD result = DnsServiceDeRegister(request, nullptr);
-  if (result != DNS_REQUEST_PENDING) {
+  DWORD win_result = DnsServiceDeRegister(request, nullptr);
+  if (win_result != DNS_REQUEST_PENDING) {
     const auto last_error = GetLastError();
     free(request->pServiceInstance->pszInstanceName);
     free(request->pServiceInstance->pszHostName);
     delete request->pServiceInstance;
     delete request;
-    printf("deregister: result: %d, last error: %d\n", result, last_error);
-    return result || last_error || -99;
+    return {"deregister_failed", win_result, last_error};
   }
-  return 0;
+  return {};
 }

@@ -1,5 +1,8 @@
+#pragma once
 #include <string>
 #include <vector>
+
+#include "dns_advertise.h"
 
 struct BrowseRecord {
   std::u16string name;
@@ -12,5 +15,5 @@ typedef void (*BrowserCallback)(const std::string reason,
                                 const std::vector<BrowseRecord> records);
 
 extern void SetBrowserCallback(BrowserCallback func);
-extern int StartBrowser(const std::u16string &service_name);
-extern int StopBrowser(const std::u16string &service_name);
+extern Result StartBrowser(const std::u16string &service_name);
+extern Result StopBrowser(const std::u16string &service_name);

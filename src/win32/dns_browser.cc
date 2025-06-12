@@ -67,9 +67,9 @@ static void _DnsQueryCompletionRoutine(PVOID pQueryContext,
   }
 }
 void SetBrowserCallback(BrowserCallback func) { _callback = func; }
-int StartBrowser(const std::u16string &service_name) {
+Result StartBrowser(const std::u16string &service_name) {
   if (g_cancelMap.find(service_name) != g_cancelMap.end()) {
-    return -1;
+    return {"already_started"};
   }
 
   DNS_SERVICE_BROWSE_REQUEST request;
@@ -82,30 +82,30 @@ int StartBrowser(const std::u16string &service_name) {
   auto cancel = new DNS_SERVICE_CANCEL();
   ZeroMemory(cancel, sizeof(DNS_SERVICE_CANCEL));
 
-  const auto ret = DnsServiceBrowse(&request, cancel);
-  if (ret != DNS_REQUEST_PENDING) {
+  const auto dns_error = DnsServiceBrowse(&request, cancel);
+  if (dns_error != DNS_REQUEST_PENDING) {
     const auto last_error = GetLastError();
     delete cancel;
-    return last_error || ret || -2;
+    return {"browse_failed", (unsigned long)dns_error, last_error};
   } else {
     g_cancelMap.insert({service_name, cancel});
   }
-  return 0;
+  return {};
 }
-int StopBrowser(const std::u16string &service_name) {
+Result StopBrowser(const std::u16string &service_name) {
   const auto iter = g_cancelMap.find(service_name);
   if (iter == g_cancelMap.end()) {
-    return -1;
+    return {"not_found"};
   }
   DNS_SERVICE_CANCEL *cancel = iter->second;
   g_cancelMap.erase(service_name);
-  const auto ret = DnsServiceBrowseCancel(cancel);
-  if (ret != ERROR_SUCCESS) {
+  const auto dns_error = DnsServiceBrowseCancel(cancel);
+  if (dns_error != ERROR_SUCCESS) {
     const auto last_error = GetLastError();
     delete cancel;
-    return last_error || ret || -2;
+    return {"cancel_failed", (unsigned long)dns_error, last_error};
   } else {
     delete cancel;
   }
-  return 0;
+  return {};
 }
