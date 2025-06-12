@@ -1,12 +1,10 @@
 import EventEmitter from 'node:events';
 const addon = require('../build/Release/node_win_dns_service.node');
 
-export default { advertise, stopAdvertise, browse };
-
 const SKIP_TIME = 60 * 1000;
 const g_emitter = new EventEmitter();
 
-interface Service {
+export interface Service {
   addresses: string[];
   fullname: string;
   host?: string;
@@ -14,7 +12,6 @@ interface Service {
   port?: number;
   type: string;
 }
-
 type Record = {
   name: string;
   type: string;
@@ -32,19 +29,14 @@ function _callback(
 }
 addon.setup(_callback);
 
-type AdvertiseParams = {
-  service: string;
-  port: number;
-};
-
 type LastEmit = {
   reason: string;
   time: number;
   service: Service;
 };
-class Browser extends EventEmitter {
-  _service: string;
-  _lastEmit = new Map<string, LastEmit>();
+export class Browser extends EventEmitter {
+  private _service: string;
+  private _lastEmit = new Map<string, LastEmit>();
   constructor(service: string) {
     super();
     this._service = service;
@@ -69,22 +61,25 @@ class Browser extends EventEmitter {
     }
     return err;
   }
-  _onBrowse = (status, service, records) => {
+  private _onBrowse = (status, service, records) => {
     const addresses: string[] = [];
     let is_down = false;
     let fullname: string;
     let host: string;
     let type: string;
     let port: number;
-    const errors = [];
+    const extras = [];
 
     records.forEach((record) => {
       if (record.type === 'PTR' && record.ttl === 0 && record.data) {
         is_down = true;
         type = record.name;
         fullname = _addDot(record.data);
+      } else if (record.type === 'SRV' && record.ttl === 0) {
+        is_down = true;
+        fullname = _addDot(record.name);
       } else if (record.ttl === 0) {
-        errors.push({ error: 'zero_ttl', record });
+        extras.push({ reason: 'zero_ttl', record });
       } else if (record.type === 'PTR') {
         type = record.name;
         fullname = _addDot(record.data);
@@ -95,30 +90,30 @@ class Browser extends EventEmitter {
       } else if (record.type === 'A' || record.type === 'AAAA') {
         addresses.push(record.data);
       } else {
-        console.log('ignored:', record);
+        extras.push({ reason: 'ignored', record });
       }
     });
 
+    if (!type && fullname) {
+      type = _typeFromFullname(fullname);
+    }
     if (is_down) {
       const name = _nameFromFullname(fullname);
       const service = { fullname, type, name, addresses };
       this._maybeEmit('serviceDown', service);
     } else if (port && fullname && addresses.length > 0) {
       const name = _nameFromFullname(fullname);
-      if (!type) {
-        type = _typeFromFullname(fullname);
-      }
       const service = { fullname, type, name, host, addresses };
       this._maybeEmit('serviceUp', service);
     } else {
-      errors.push({ error: 'no_up_or_down', records });
+      extras.push({ reason: 'no_up_or_down', records });
     }
 
-    if (errors.length > 0) {
-      this.emit('error', errors);
+    if (extras.length > 0) {
+      this.emit('extras', extras);
     }
   };
-  _maybeEmit(reason: string, service: Service) {
+  private _maybeEmit(reason: string, service: Service) {
     const last = this._lastEmit.get(service.fullname);
     const delta = Date.now() - (last?.time ?? 0);
     let should_emit = true;
@@ -137,22 +132,42 @@ class Browser extends EventEmitter {
     }
   }
 }
-export function advertise(params: AdvertiseParams, done: (err?: any) => void) {
-  const err = addon.register(params.service, params.port);
-  if (err && typeof err === 'string') {
-    throw new Error(err);
+export class Advertiser extends EventEmitter {
+  private _service: string;
+  private _port: number;
+  constructor(service: string, port: number) {
+    super();
+    this._service = service;
+    this._port = port;
   }
-  done(err);
-}
-export function stopAdvertise(service: string, done: (err?: any) => void) {
-  const err = addon.deregister(service);
-  if (err && typeof err === 'string') {
-    throw new Error(err);
+  start() {
+    g_emitter.off('deregister', this._onDeregister);
+    g_emitter.on('register', this._onRegister);
+    const err = addon.register(this._service, this._port);
+    if (err && typeof err === 'string') {
+      throw new Error(err);
+    }
+    return err;
   }
-  done(err);
-}
-export function browse(service: string): Browser {
-  return new Browser(service);
+  stop() {
+    g_emitter.off('register', this._onRegister);
+    g_emitter.on('deregister', this._onDeregister);
+    const err = addon.deregister(this._service);
+    if (err && typeof err === 'string') {
+      throw new Error(err);
+    }
+    return err;
+  }
+  private _onRegister = (status: number, service: string) => {
+    if (service === this._service && status !== 0) {
+      this.emit('error', status);
+    }
+  };
+  private _onDeregister = (status: number, service: string) => {
+    if (service === this._service && status !== 0) {
+      this.emit('error', status);
+    }
+  };
 }
 function _addDot(s: string): string {
   if (!s.endsWith('.')) {
@@ -183,3 +198,4 @@ function _typeFromFullname(fullname: string): string {
 function _nameFromFullname(fullname: string): string {
   return fullname.split('.').slice(0, -4).join('.');
 }
+export default { Advertiser, Browser };

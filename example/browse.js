@@ -11,10 +11,13 @@ console.log('browse:', service);
 
 let browser;
 try {
-  browser = DnsService.browse(service);
+  browser = new DnsService.Browser(service);
 
   browser.on('error', (err) => {
     console.error('error:', util.inspect(err, { depth: 99 }));
+  });
+  browser.on('extras', (extras) => {
+    console.log('extras:', util.inspect(extras, { depth: 99 }));
   });
   browser.on('serviceUp', (service) => {
     console.log('serviceUp:', util.inspect(service, { depth: 99 }));

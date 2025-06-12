@@ -5,12 +5,9 @@ var __importDefault =
     return mod && mod.__esModule ? mod : { default: mod };
   };
 Object.defineProperty(exports, '__esModule', { value: true });
-exports.advertise = advertise;
-exports.stopAdvertise = stopAdvertise;
-exports.browse = browse;
+exports.Advertiser = exports.Browser = void 0;
 const node_events_1 = __importDefault(require('node:events'));
 const addon = require('../build/Release/node_win_dns_service.node');
-exports.default = { advertise, stopAdvertise, browse };
 const SKIP_TIME = 60 * 1000;
 const g_emitter = new node_events_1.default();
 function _callback(reason, status, service, records) {
@@ -28,14 +25,17 @@ class Browser extends node_events_1.default {
       let host;
       let type;
       let port;
-      const errors = [];
+      const extras = [];
       records.forEach((record) => {
         if (record.type === 'PTR' && record.ttl === 0 && record.data) {
           is_down = true;
           type = record.name;
           fullname = _addDot(record.data);
+        } else if (record.type === 'SRV' && record.ttl === 0) {
+          is_down = true;
+          fullname = _addDot(record.name);
         } else if (record.ttl === 0) {
-          errors.push({ error: 'zero_ttl', record });
+          extras.push({ reason: 'zero_ttl', record });
         } else if (record.type === 'PTR') {
           type = record.name;
           fullname = _addDot(record.data);
@@ -46,25 +46,25 @@ class Browser extends node_events_1.default {
         } else if (record.type === 'A' || record.type === 'AAAA') {
           addresses.push(record.data);
         } else {
-          console.log('ignored:', record);
+          extras.push({ reason: 'ignored', record });
         }
       });
+      if (!type && fullname) {
+        type = _typeFromFullname(fullname);
+      }
       if (is_down) {
         const name = _nameFromFullname(fullname);
         const service = { fullname, type, name, addresses };
         this._maybeEmit('serviceDown', service);
       } else if (port && fullname && addresses.length > 0) {
         const name = _nameFromFullname(fullname);
-        if (!type) {
-          type = _typeFromFullname(fullname);
-        }
         const service = { fullname, type, name, host, addresses };
         this._maybeEmit('serviceUp', service);
       } else {
-        errors.push({ error: 'no_up_or_down', records });
+        extras.push({ reason: 'no_up_or_down', records });
       }
-      if (errors.length > 0) {
-        this.emit('error', errors);
+      if (extras.length > 0) {
+        this.emit('extras', extras);
       }
     };
     this._service = service;
@@ -108,23 +108,43 @@ class Browser extends node_events_1.default {
     }
   }
 }
-function advertise(params, done) {
-  const err = addon.register(params.service, params.port);
-  if (err && typeof err === 'string') {
-    throw new Error(err);
+exports.Browser = Browser;
+class Advertiser extends node_events_1.default {
+  constructor(service, port) {
+    super();
+    this._onRegister = (status, service) => {
+      if (service === this._service && status !== 0) {
+        this.emit('error', status);
+      }
+    };
+    this._onDeregister = (status, service) => {
+      if (service === this._service && status !== 0) {
+        this.emit('error', status);
+      }
+    };
+    this._service = service;
+    this._port = port;
   }
-  done(err);
-}
-function stopAdvertise(service, done) {
-  const err = addon.deregister(service);
-  if (err && typeof err === 'string') {
-    throw new Error(err);
+  start() {
+    g_emitter.off('deregister', this._onDeregister);
+    g_emitter.on('register', this._onRegister);
+    const err = addon.register(this._service, this._port);
+    if (err && typeof err === 'string') {
+      throw new Error(err);
+    }
+    return err;
   }
-  done(err);
+  stop() {
+    g_emitter.off('register', this._onRegister);
+    g_emitter.on('deregister', this._onDeregister);
+    const err = addon.deregister(this._service);
+    if (err && typeof err === 'string') {
+      throw new Error(err);
+    }
+    return err;
+  }
 }
-function browse(service) {
-  return new Browser(service);
-}
+exports.Advertiser = Advertiser;
 function _addDot(s) {
   if (!s.endsWith('.')) {
     s += '.';
@@ -154,4 +174,5 @@ function _typeFromFullname(fullname) {
 function _nameFromFullname(fullname) {
   return fullname.split('.').slice(0, -4).join('.');
 }
+exports.default = { Advertiser, Browser };
 //# sourceMappingURL=index.js.map

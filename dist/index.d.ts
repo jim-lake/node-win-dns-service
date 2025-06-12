@@ -1,11 +1,5 @@
 import EventEmitter from 'node:events';
-declare const _default: {
-  advertise: typeof advertise;
-  stopAdvertise: typeof stopAdvertise;
-  browse: typeof browse;
-};
-export default _default;
-interface Service {
+export interface Service {
   addresses: string[];
   fullname: string;
   host?: string;
@@ -13,30 +7,26 @@ interface Service {
   port?: number;
   type: string;
 }
-type AdvertiseParams = {
-  service: string;
-  port: number;
-};
-type LastEmit = {
-  reason: string;
-  time: number;
-  service: Service;
-};
-declare class Browser extends EventEmitter {
-  _service: string;
-  _lastEmit: Map<string, LastEmit>;
+export declare class Browser extends EventEmitter {
+  private _service;
+  private _lastEmit;
   constructor(service: string);
   start(): any;
   stop(): any;
-  _onBrowse: (status: any, service: any, records: any) => void;
-  _maybeEmit(reason: string, service: Service): void;
+  private _onBrowse;
+  private _maybeEmit;
 }
-export declare function advertise(
-  params: AdvertiseParams,
-  done: (err?: any) => void
-): void;
-export declare function stopAdvertise(
-  service: string,
-  done: (err?: any) => void
-): void;
-export declare function browse(service: string): Browser;
+export declare class Advertiser extends EventEmitter {
+  private _service;
+  private _port;
+  constructor(service: string, port: number);
+  start(): any;
+  stop(): any;
+  private _onRegister;
+  private _onDeregister;
+}
+declare const _default: {
+  Advertiser: typeof Advertiser;
+  Browser: typeof Browser;
+};
+export default _default;
