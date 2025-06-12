@@ -1,4 +1,5 @@
 const DnsService = require('../dist/index.js');
+const util = require('node:util');
 
 const service = process.argv[2];
 
@@ -12,13 +13,13 @@ try {
   const browser = DnsService.browse(service);
 
   browser.on('error', (err) => {
-    console.error('error:', err);
+    console.error('error:', util.inspect(err, { depth: 99 }));
   });
   browser.on('serviceUp', (service) => {
-    console.error('serviceUp:', service);
+    console.log('serviceUp:', util.inspect(service, { depth: 99 }));
   });
   browser.on('serviceDown', (service) => {
-    console.error('serviceDown:', service);
+    console.log('serviceDown:', util.inspect(service, { depth: 99 }));
   });
   const ret = browser.start();
   console.log('start: ret:', ret);

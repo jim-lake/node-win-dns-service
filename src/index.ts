@@ -5,10 +5,20 @@ export default { advertise, stopAdvertise, browse };
 
 const g_emitter = new EventEmitter();
 
+interface Service {
+  addresses: string[];
+  fullname: string;
+  host?: string;
+  name: string | undefined;
+  port?: number;
+  type: string;
+}
+
 type Record = {
   name: string;
-  port: number;
   type: string;
+  ttl: number;
+  port: number;
   data: string;
 };
 function _callback(
@@ -28,6 +38,7 @@ type AdvertiseParams = {
 
 class Browser extends EventEmitter {
   _service: string;
+  _lastEmit = new Map<string, [reason: string, service: Service]>();
   constructor(service: string) {
     super();
     this._service = service;
@@ -53,8 +64,65 @@ class Browser extends EventEmitter {
     return err;
   }
   _onBrowse = (status, service, records) => {
-    this.emit('serviceUp', records);
+    const addresses: string[] = [];
+    let is_down = false;
+    let fullname: string;
+    let host: string;
+    let type: string;
+    let port: number;
+    const errors = [];
+
+    records.forEach((record) => {
+      if (record.type === 'PTR' && record.ttl === 0 && record.data) {
+        is_down = true;
+        type = record.name;
+        fullname = _addDot(record.data);
+      } else if (record.ttl === 0) {
+        errors.push({ error: 'zero_ttl', record });
+      } else if (record.type === 'PTR') {
+        type = record.name;
+        fullname = _addDot(record.data);
+      } else if (record.type === 'SRV') {
+        port = record.port;
+        host = _addDot(record.data);
+        fullname = _addDot(record.name);
+      } else if (record.type === 'A' || record.type === 'AAAA') {
+        addresses.push(record.data);
+      } else {
+        console.log('ignored:', record);
+      }
+    });
+
+    if (is_down) {
+      const name = _nameFromFullname(fullname);
+      const service = { fullname, type, name, addresses };
+      this._maybeEmit('serviceDown', service);
+    } else if (port && fullname && addresses.length > 0) {
+      const name = _nameFromFullname(fullname);
+      if (!type) {
+        type = _typeFromFullname(fullname);
+      }
+      const service = { fullname, type, name, host, addresses };
+      this._maybeEmit('serviceUp', service);
+    } else {
+      errors.push({ error: 'no_up_or_down', records });
+    }
+
+    if (errors.length > 0) {
+      this.emit('error', errors);
+    }
   };
+  _maybeEmit(reason: string, service: Service) {
+    const last = this._lastEmit.get(service.fullname);
+    let should_emit = true;
+    if (last && last[0] === reason && _isServiceEqual(service, last[1])) {
+      should_emit = false;
+    }
+    if (should_emit) {
+      this._lastEmit.set(service.fullname, [reason, service]);
+      this.emit(reason, service);
+    }
+  }
 }
 export function advertise(params: AdvertiseParams, done: (err?: any) => void) {
   const err = addon.register(params.service, params.port);
@@ -72,4 +140,33 @@ export function stopAdvertise(service: string, done: (err?: any) => void) {
 }
 export function browse(service: string): Browser {
   return new Browser(service);
+}
+function _addDot(s: string): string {
+  if (!s.endsWith('.')) {
+    s += '.';
+  }
+  return s;
+}
+function _isServiceEqual(a, b) {
+  return (
+    a.fullname === b.fullname &&
+    a.name === b.name &&
+    a.host === b.host &&
+    a.type === b.type &&
+    a.port === b.port &&
+    _isAddressesEqual(a.addresses, b.addresses)
+  );
+}
+function _isAddressesEqual(a, b) {
+  let ret = a.length === b.length;
+  if (ret) {
+    ret = a.every((ip) => b.includes(ip));
+  }
+  return ret;
+}
+function _typeFromFullname(fullname: string): string {
+  return fullname.split('.').slice(-4, -1).join('.');
+}
+function _nameFromFullname(fullname: string): string {
+  return fullname.split('.').slice(0, -4).join('.');
 }

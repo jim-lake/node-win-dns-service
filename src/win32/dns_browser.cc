@@ -38,23 +38,23 @@ static void _DnsQueryCompletionRoutine(PVOID pQueryContext,
   if (pQueryResults->QueryStatus == ERROR_CANCELLED) {
     return;
   }
-  printf("_DnsQueryCompletionRoutine: %d\n", pQueryResults->QueryStatus);
   if (_callback != nullptr) {
     std::vector<BrowseRecord> records;
     auto record = (PDNS_RECORDW)pQueryResults->pQueryRecords;
     while (record != nullptr) {
       if (record->wType == DNS_TYPE_A) {
-        records.emplace_back((char16_t *)record->pName, 0, "A",
+        records.emplace_back((char16_t *)record->pName, "A", record->dwTtl, 0,
                              _ip4ToString(record->Data.A.IpAddress));
       } else if (record->wType == DNS_TYPE_AAAA) {
-        records.emplace_back((char16_t *)record->pName, 0, "AAAA",
-                             _ip6ToString(record->Data.AAAA.Ip6Address));
+        records.emplace_back((char16_t *)record->pName, "AAAA", record->dwTtl,
+                             0, _ip6ToString(record->Data.AAAA.Ip6Address));
       } else if (record->wType == DNS_TYPE_PTR) {
-        records.emplace_back((char16_t *)record->pName, 0, "PTR",
+        records.emplace_back((char16_t *)record->pName, "PTR", record->dwTtl, 0,
                              (char16_t *)record->Data.PTR.pNameHost);
       } else if (record->wType == DNS_TYPE_SRV) {
-        records.emplace_back((char16_t *)record->pName, record->Data.SRV.wPort,
-                             "SRV", (char16_t *)record->Data.SRV.pNameTarget);
+        records.emplace_back((char16_t *)record->pName, "SRV", record->dwTtl,
+                             record->Data.SRV.wPort,
+                             (char16_t *)record->Data.SRV.pNameTarget);
       }
       record = record->pNext;
     }
@@ -63,7 +63,7 @@ static void _DnsQueryCompletionRoutine(PVOID pQueryContext,
     printf("_DnsQueryCompletionRoutine: no callback\n");
   }
   if (pQueryResults->pQueryRecords != nullptr) {
-    DnsRecordListFree(pQueryResults->pQueryRecords);
+    DnsRecordListFree(pQueryResults->pQueryRecords, DnsFreeRecordList);
   }
 }
 void SetBrowserCallback(BrowserCallback func) { _callback = func; }

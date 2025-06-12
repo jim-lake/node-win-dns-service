@@ -18,8 +18,9 @@ static auto napiCallback = [](Env env, Function cb, CallbackParams *params) {
   for (auto record : params->records) {
     const auto obj = Object::New(env);
     obj.Set("name", String::New(env, record.name));
-    obj.Set("port", Number::New(env, record.port));
     obj.Set("type", String::New(env, record.type));
+    obj.Set("ttl", Number::New(env, record.ttl));
+    obj.Set("port", Number::New(env, record.port));
     obj.Set("data", String::New(env, record.data));
     records.Set(records.Length(), obj);
   }

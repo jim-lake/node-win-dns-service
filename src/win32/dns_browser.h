@@ -3,8 +3,9 @@
 
 struct BrowseRecord {
   std::u16string name;
-  int port;
   std::string type;
+  int ttl;
+  int port;
   std::u16string data;
 };
 typedef void (*BrowserCallback)(const std::string reason,

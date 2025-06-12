@@ -5,16 +5,26 @@ declare const _default: {
   browse: typeof browse;
 };
 export default _default;
+interface Service {
+  addresses: string[];
+  fullname: string;
+  host?: string;
+  name: string | undefined;
+  port?: number;
+  type: string;
+}
 type AdvertiseParams = {
   service: string;
   port: number;
 };
 declare class Browser extends EventEmitter {
   _service: string;
+  _lastEmit: Map<string, [reason: string, service: Service]>;
   constructor(service: string);
   start(): any;
   stop(): any;
   _onBrowse: (status: any, service: any, records: any) => void;
+  _maybeEmit(reason: string, service: Service): void;
 }
 export declare function advertise(
   params: AdvertiseParams,
