@@ -4,7 +4,11 @@
       "target_name": "node_win_dns_service",
       "cflags!": ["-fno-exceptions"],
       "cflags_cc!": ["-fno-exceptions"],
-      "sources": ["src/win32/node_win_dns_service.cc"],
+      "sources": [
+        "src/win32/node_win_dns_service.cc",
+        "src/win32/dns_advertise.cc",
+        "src/win32/dns_browser.cc"
+      ],
       "include_dirs": ["<!@(node -p \"require('node-addon-api').include\")"],
       "defines": ["NAPI_CPP_EXCEPTIONS"],
       "msvs_settings": {

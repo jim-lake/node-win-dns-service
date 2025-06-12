@@ -12,7 +12,7 @@ try {
   const browser = DnsService.browse(service);
 
   browser.on('error', (err) => {
-    console.error('error:', error);
+    console.error('error:', err);
   });
   browser.on('serviceUp', (service) => {
     console.error('serviceUp:', service);
@@ -20,6 +20,17 @@ try {
   browser.on('serviceDown', (service) => {
     console.error('serviceDown:', service);
   });
+  const ret = browser.start();
+  console.log('start: ret:', ret);
+  if (!ret) {
+    setTimeout(() => {
+      const ret = browser.stop();
+      console.log('stop: ret:', ret);
+      setTimeout(() => {}, 60 * 60 * 1000);
+      console.log('waiting forever...');
+    }, 60 * 1000);
+    console.log('waiting 60 seconds...');
+  }
 } catch (e) {
   console.error('threw:', e);
 }
