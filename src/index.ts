@@ -103,7 +103,7 @@ export class Browser extends EventEmitter {
       this._maybeEmit('serviceDown', service);
     } else if (port && fullname && addresses.length > 0) {
       const name = _nameFromFullname(fullname);
-      const service = { fullname, type, name, host, addresses };
+      const service = { fullname, type, name, host, port, addresses };
       this._maybeEmit('serviceUp', service);
     } else {
       extras.push({ reason: 'no_up_or_down', records });
