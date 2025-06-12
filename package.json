@@ -1,6 +1,6 @@
 {
   "name": "node-win-dns-service",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Windows DNS Advertise and Browse",
   "keywords": [
     "win32",
