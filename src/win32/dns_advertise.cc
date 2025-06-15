@@ -45,8 +45,9 @@ static void _DnsServiceDeRegisterComplete(DWORD Status, PVOID pQueryContext,
   }
 }
 void SetAdvertiseCallback(AdvertiseCallback func) { _callback = func; }
-Result RegisterService(const std::u16string &service_name,
-                       const uint16_t port) {
+Result RegisterService(const std::u16string &service_name, const uint16_t port,
+                       const std::vector<std::u16string> keys,
+                       const std::vector<std::u16string> values) {
   if (g_serviceRequestMap.find(service_name) != g_serviceRequestMap.end()) {
     return {"already_registered"};
   }
@@ -56,24 +57,35 @@ Result RegisterService(const std::u16string &service_name,
   if (!GetComputerNameExW(ComputerNameDnsHostname, hostname, &size)) {
     return {"no_computer_name"};
   }
+  PWSTR *pkeys = nullptr;
+  PWSTR *pvalues = nullptr;
+  if (keys.size() > 0) {
+    pkeys = new PWSTR[keys.size()];
+    pvalues = new PWSTR[keys.size()];
+    for (auto i = 0; i < keys.size(); i++) {
+      pkeys[i] = _wcsdup(reinterpret_cast<LPCWSTR>(keys[i].c_str()));
+      pvalues[i] = _wcsdup(reinterpret_cast<LPCWSTR>(values[i].c_str()));
+    }
+  }
 
   std::wstring fqdn = hostname;
   fqdn += L".local";
 
   auto instance = new DNS_SERVICE_INSTANCE();
-  ZeroMemory(instance, sizeof(DNS_SERVICE_INSTANCE));
   instance->pszInstanceName =
       _wcsdup(reinterpret_cast<LPCWSTR>(service_name.c_str()));
   instance->pszHostName = _wcsdup(fqdn.c_str());
   instance->wPort = port;
   instance->wPriority = 0;
   instance->wWeight = 0;
-  instance->dwPropertyCount = 0;
-  instance->keys = nullptr;
-  instance->values = nullptr;
+  instance->dwPropertyCount = keys.size();
+  instance->keys = pkeys;
+  instance->values = pvalues;
+  instance->ip4Address = nullptr;
+  instance->ip6Address = nullptr;
+  instance->dwInterfaceIndex = 0;
 
   auto request = new DNS_SERVICE_REGISTER_REQUEST();
-  ZeroMemory(request, sizeof(DNS_SERVICE_REGISTER_REQUEST));
   request->Version = DNS_QUERY_REQUEST_VERSION1;
   request->InterfaceIndex = 0;
   request->pServiceInstance = instance;

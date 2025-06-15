@@ -19,7 +19,8 @@ export declare class Browser extends EventEmitter {
 export declare class Advertiser extends EventEmitter {
   private _service;
   private _port;
-  constructor(service: string, port: number);
+  private _properties;
+  constructor(service: string, port: number, properties?: object);
   start(): void;
   stop(): void;
   private _onRegister;

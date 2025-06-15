@@ -106,7 +106,7 @@ class Browser extends node_events_1.default {
 }
 exports.Browser = Browser;
 class Advertiser extends node_events_1.default {
-  constructor(service, port) {
+  constructor(service, port, properties) {
     super();
     this._onRegister = (status, service) => {
       if (service === this._service && status !== 0) {
@@ -120,12 +120,15 @@ class Advertiser extends node_events_1.default {
     };
     this._service = service;
     this._port = port;
+    this._properties = properties ?? {};
   }
   start() {
     g_emitter.off('deregister', this._onDeregister);
     g_emitter.on('register', this._onRegister);
     try {
-      addon.register(this._service, this._port);
+      const keys = Object.keys(this._properties);
+      const values = Object.values(this._properties);
+      addon.register(this._service, this._port, keys, values);
     } catch (e) {
       this.emit('error', e);
     }

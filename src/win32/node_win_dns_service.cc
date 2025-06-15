@@ -11,6 +11,32 @@ struct CallbackParams {
   std::vector<BrowseRecord> records;
 };
 
+struct StringVectorResult {
+  Napi::Error error;
+  std::vector<std::u16string> array;
+};
+static StringVectorResult _convertVectorString(const Napi::Env &env,
+                                               const Napi::Value &value) {
+  StringVectorResult result;
+  if (!value.IsArray()) {
+    result.error = Napi::TypeError::New(env, "Expected an array of strings");
+    return result;
+  }
+  Napi::Array inputArray = value.As<Napi::Array>();
+  uint32_t length = inputArray.Length();
+  result.array.reserve(length);
+
+  for (uint32_t i = 0; i < length; ++i) {
+    Napi::Value element = inputArray[i];
+    if (!element.IsString()) {
+      result.error = Napi::TypeError::New(env, "All elements must be strings");
+      return result;
+    }
+    result.array.push_back(element.As<Napi::String>());
+  }
+  return result;
+}
+
 static ThreadSafeFunction g_tsfn = NULL;
 
 static auto napiCallback = [](Env env, Function cb, CallbackParams *params) {
@@ -62,21 +88,38 @@ Value Setup(const Napi::CallbackInfo &info) {
 }
 Value Register(const CallbackInfo &info) {
   const Env env = info.Env();
-  if (info.Length() != 2) {
+  if (info.Length() != 4) {
     Error::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
   } else if (!info[0].IsString()) {
-    Error::New(env, "Expected 2 arguments").ThrowAsJavaScriptException();
+    Error::New(env, "Expected string arg 0").ThrowAsJavaScriptException();
   } else if (!info[1].IsNumber()) {
     Error::New(env, "Expected number arg 1").ThrowAsJavaScriptException();
+  } else if (!info[2].IsArray()) {
+    Error::New(env, "Expected array arg 2").ThrowAsJavaScriptException();
+  } else if (!info[3].IsArray()) {
+    Error::New(env, "Expected array arg 3").ThrowAsJavaScriptException();
   } else {
     const auto service_name = info[0].As<String>();
     const auto port = info[1].As<Number>();
-    const auto result = RegisterService(service_name, port.Int32Value());
-    if (result.error.length() > 0) {
-      auto err = Napi::Error::New(env, result.error);
-      err.Set("errno", Number::New(env, result.win_error));
-      err.Set("last_error", Number::New(env, result.last_error));
-      err.ThrowAsJavaScriptException();
+    const auto key_result = _convertVectorString(env, info[2]);
+    const auto value_result = _convertVectorString(env, info[2]);
+
+    if (!key_result.error.IsEmpty()) {
+      key_result.error.ThrowAsJavaScriptException();
+    } else if (!value_result.error.IsEmpty()) {
+      value_result.error.ThrowAsJavaScriptException();
+    } else if (value_result.array.size() != key_result.array.size()) {
+      Error::New(env, "keys and values must has same size")
+          .ThrowAsJavaScriptException();
+    } else {
+      const auto result = RegisterService(service_name, port.Int32Value(),
+                                          key_result.array, value_result.array);
+      if (result.error.length() > 0) {
+        auto err = Napi::Error::New(env, result.error);
+        err.Set("errno", Number::New(env, result.win_error));
+        err.Set("last_error", Number::New(env, result.last_error));
+        err.ThrowAsJavaScriptException();
+      }
     }
   }
   return env.Null();

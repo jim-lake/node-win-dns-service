@@ -131,16 +131,20 @@ export class Browser extends EventEmitter {
 export class Advertiser extends EventEmitter {
   private _service: string;
   private _port: number;
-  constructor(service: string, port: number) {
+  private _properties: object;
+  constructor(service: string, port: number, properties?: object) {
     super();
     this._service = service;
     this._port = port;
+    this._properties = properties ?? {};
   }
   start() {
     g_emitter.off('deregister', this._onDeregister);
     g_emitter.on('register', this._onRegister);
     try {
-      addon.register(this._service, this._port);
+      const keys = Object.keys(this._properties);
+      const values = Object.values(this._properties);
+      addon.register(this._service, this._port, keys, values);
     } catch (e) {
       this.emit('error', e);
     }
